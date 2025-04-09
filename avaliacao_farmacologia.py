@@ -14,7 +14,6 @@ III AVALIAÇÃO
 st.subheader("Jogo Interativo: Anti-hipertensivos")
 st.markdown("Responda corretamente para desbloquear a próxima pergunta. Erros adicionam uma nova questão à fila. Máximo de 20 perguntas.")
 
-# Banco de perguntas
 questions = [
     ("A _______ atua como agonista α2-central, reduzindo a atividade simpática e a pressão arterial, mas sua interrupção abrupta pode causar hipertensão de rebote.", "clonidina"),
     ("Os _______ são frequentemente indicados como terapia inicial para hipertensão devido ao seu baixo custo, eficácia e efeito protetor cardiovascular.", "diuréticos"),
@@ -34,40 +33,36 @@ questions = [
     ("A _______ é preferida na via sublingual para crises hipertensivas.", "nitroglicerina")
 ]
 
-# Inicialização de estados
-if 'queue' not in st.session_state:
-    st.session_state.queue = random.sample(questions, 5)
-    st.session_state.answered = []
-    st.session_state.max_questions = 20
+# Inicialização
+if 'fila' not in st.session_state:
+    st.session_state.fila = random.sample(questions, 5)
+    st.session_state.respondidas = []
+    st.session_state.maximo = 20
     st.session_state.index = 0
-    st.session_state.feedback = ""
+    st.session_state.finalizado = False
 
-# Se ainda houver perguntas
-if st.session_state.queue:
-    q, a = st.session_state.queue[0]
-    st.write(f"**Pergunta:** {q}")
-
-    user_answer = st.text_input("Sua resposta (minúsculas, sem acento):", key="user_input")
-
+# Mostrar se ainda houver perguntas
+if not st.session_state.finalizado and st.session_state.fila:
+    pergunta, resposta = st.session_state.fila[0]
+    st.write(f"**Pergunta:** {pergunta}")
+    user_input = st.text_input("Sua resposta (minúsculas, sem acento):", key=f"resposta_{len(st.session_state.respondidas)}")
+    
     if st.button("Enviar resposta"):
-        if user_answer.strip().lower() == a:
-            st.success("✅ Correto!")
-            st.session_state.answered.append((q, user_answer))
-            st.session_state.queue.pop(0)
-        else:
-            st.error(f"❌ Errado! A resposta correta era: {a}")
-            st.session_state.answered.append((q, user_answer))
-            if len(st.session_state.answered) < st.session_state.max_questions:
-                extras = [x for x in questions if x not in st.session_state.queue and x not in st.session_state.answered]
-                if extras:
-                    st.session_state.queue.append(random.choice(extras))
-            st.session_state.queue.pop(0)
+        correta = user_input.strip().lower() == resposta
+        st.session_state.respondidas.append((pergunta, user_input, correta))
+        st.session_state.fila.pop(0)
 
-        # Limpa a entrada para a próxima questão
-        st.experimental_set_query_params()
+        if not correta and len(st.session_state.respondidas) < st.session_state.maximo:
+            extras = [q for q in questions if q not in st.session_state.fila and q not in [r[:2] for r in st.session_state.respondidas]]
+            if extras:
+                st.session_state.fila.append(random.choice(extras))
+
+        if not st.session_state.fila:
+            st.session_state.finalizado = True
+
         st.experimental_rerun()
 
-    st.markdown(f"**Progresso:** {len(st.session_state.answered)} respondidas • {len(st.session_state.queue)} restantes")
-
-else:
-    st.success(f"🏁 Fim da avaliação! Você respondeu {len(st.session_state.answered)} questões.")
+elif st.session_state.finalizado or not st.session_state.fila:
+    st.success(f"🏁 Fim da avaliação! Você respondeu {len(st.session_state.respondidas)} questões.")
+    acertos = sum(1 for q in st.session_state.respondidas if q[2])
+    st.markdown(f"**Acertos:** {acertos} de {len(st.session_state.respondidas)}")
